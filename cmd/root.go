@@ -22,9 +22,18 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+)
+
+const (
+	// The prefix for all environment variables
+	envPrefix = "CHUCK"
 )
 
 // NewRootCommand creates a new chuck command instance
@@ -33,6 +42,10 @@ func NewRootCommand() *cobra.Command {
 		Use:   "chuck",
 		Short: "chuck - Container Image Update Checker",
 		Long:  `chuck fetches the images from running containers and shows eventual updates`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Bind cobra and viper
+			return initializeConfig(cmd)
+		},
 	}
 
 	rootCmd.AddCommand(NewRunCommand())
@@ -47,4 +60,29 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+// initializeConfig binds cobra flags and viper config
+func initializeConfig(cmd *cobra.Command) error {
+	v := viper.New()
+
+	// Load configuration from env vars
+	v.SetEnvPrefix(envPrefix)
+	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	v.AutomaticEnv()
+
+	bindFlags(cmd, v)
+
+	return nil
+}
+
+func bindFlags(cmd *cobra.Command, v *viper.Viper) {
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		configName := f.Name
+
+		if !f.Changed && v.IsSet(configName) {
+			val := v.Get(configName)
+			_ = cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+		}
+	})
 }
