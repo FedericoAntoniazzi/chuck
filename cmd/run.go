@@ -22,23 +22,33 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"fmt"
 	"os"
 
+	"github.com/FedericoAntoniazzi/chuck/internal/chuck"
+	"github.com/FedericoAntoniazzi/chuck/internal/client"
 	"github.com/spf13/cobra"
 )
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "chuck",
-	Short: "chuck - Container Image Update Checker",
-	Long:  `chuck fetches the images from running containers and shows eventual updates`,
+// runCmd represents the run command
+var runCmd = &cobra.Command{
+	Use:   "run",
+	Short: "Run Chuck",
+	Run: func(cmd *cobra.Command, args []string) {
+		engine, err := client.NewDockerClient()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		err = chuck.Job(engine)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(2)
+		}
+	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
-	}
+func init() {
+	rootCmd.AddCommand(runCmd)
 }
