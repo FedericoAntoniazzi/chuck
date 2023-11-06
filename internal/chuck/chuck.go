@@ -7,6 +7,7 @@ import (
 
 	"github.com/FedericoAntoniazzi/chuck/internal/client"
 	"github.com/FedericoAntoniazzi/chuck/internal/registry"
+	"github.com/Masterminds/semver"
 )
 
 type ContainerEngine interface {
@@ -34,7 +35,27 @@ func Job(ce ContainerEngine) error {
 			slog.Error("Error listing remote tags", "error", err)
 		}
 
-		containers[i].ImageUpdates = remoteTags
+		newerTags := []string{}
+		newerTagConstraint, err := semver.NewConstraint(fmt.Sprintf("> %s", cnt.Image.Tag))
+		if err != nil {
+			return err
+		}
+		for _, t := range remoteTags {
+			v, err := semver.NewVersion(t)
+			if err != nil {
+				slog.Debug("error while parsing tag version. skipping.",
+					"error", err,
+					"image", image,
+					"tag", t,
+				)
+				continue
+			}
+			if newerTagConstraint.Check(v) {
+				newerTags = append(newerTags, t)
+			}
+		}
+
+		containers[i].ImageUpdates = newerTags
 	}
 
 	for _, c := range containers {
