@@ -31,24 +31,24 @@ import (
 )
 
 // runCmd represents the run command
-var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run Chuck",
-	Run: func(cmd *cobra.Command, args []string) {
-		engine, err := client.NewDockerClient()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+func NewRunCommand() *cobra.Command {
+	runCmd := &cobra.Command{
+		Use:   "run",
+		Short: "Run Chuck",
+		Run: func(cmd *cobra.Command, args []string) {
+			engine, err := client.NewDockerClient()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 
-		err = chuck.Job(engine)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(2)
-		}
-	},
-}
+			err = chuck.Job(engine)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(2)
+			}
+		},
+	}
 
-func init() {
-	rootCmd.AddCommand(runCmd)
+	return runCmd
 }
