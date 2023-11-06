@@ -38,7 +38,8 @@ func Job(ce ContainerEngine) error {
 		newerTags := []string{}
 		newerTagConstraint, err := semver.NewConstraint(fmt.Sprintf("> %s", cnt.Image.Tag))
 		if err != nil {
-			return err
+			slog.Warn("error checking version constraint. Wrong format?", "error", err)
+			continue
 		}
 		for _, t := range remoteTags {
 			v, err := semver.NewVersion(t)
@@ -59,7 +60,9 @@ func Job(ce ContainerEngine) error {
 	}
 
 	for _, c := range containers {
-		fmt.Printf("Container %s (%s) can be updated: %v\n", c.Name, c.Image, c.ImageUpdates)
+		if len(c.ImageUpdates) > 0 {
+			fmt.Printf("Container %s (%s) can be updated: %v\n", c.Name, c.Image, c.ImageUpdates)
+		}
 	}
 
 	return nil
