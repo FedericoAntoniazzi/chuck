@@ -15,6 +15,12 @@ or, if you prefer building the binary first:
 go build .
 ```
 
+## Usage
+### List local containers
+```bash
+chuck run
+```
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
