@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"github.com/FedericoAntoniazzi/chuck/internal/models"
 	"github.com/docker/docker/api/types"
 	docker "github.com/docker/docker/client"
 )
@@ -12,16 +13,9 @@ func defaultDockerClient() (*docker.Client, error) {
 	return docker.NewClientWithOpts(docker.FromEnv, docker.WithAPIVersionNegotiation())
 }
 
-// Container describes common parameters of a container
-type Container struct {
-	Image  string
-	Labels map[string]string
-	Name   string
-}
-
 // newFromDockerContainer returns a Container instance from a docker Container type
-func newFromDockerContainer(dockerContainer types.Container) Container {
-	return Container{
+func newFromDockerContainer(dockerContainer types.Container) models.Container {
+	return models.Container{
 		Name:   dockerContainer.Names[0],
 		Image:  dockerContainer.Image,
 		Labels: dockerContainer.Labels,
@@ -30,7 +24,7 @@ func newFromDockerContainer(dockerContainer types.Container) Container {
 
 // nameSortedContainers describe a list of containers sorted by name.
 // It's there for testing purposes
-type nameSortedContainers []Container
+type nameSortedContainers []models.Container
 
 func (sc nameSortedContainers) Len() int {
 	return len(sc)

@@ -6,17 +6,18 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/FedericoAntoniazzi/chuck/internal/models"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/google/go-cmp/cmp"
 	"github.com/testcontainers/testcontainers-go"
 )
 
-func runTestingContainers(ctx context.Context) ([]testcontainers.Container, []Container) {
+func runTestingContainers(ctx context.Context) ([]testcontainers.Container, []models.Container) {
 	defaultLabels := map[string]string{
 		ChuckEnableLabel: "true",
 	}
-	containers := []Container{
+	containers := []models.Container{
 		{
 			Name:   "nginx_125",
 			Image:  "nginx:1.25",

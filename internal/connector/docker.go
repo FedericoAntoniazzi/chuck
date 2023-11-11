@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/FedericoAntoniazzi/chuck/internal/models"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	docker "github.com/docker/docker/client"
@@ -35,13 +36,13 @@ func (dc *DockerConnector) listContainersWithLabel(ctx context.Context, label st
 	return dc.client.ContainerList(ctx, containerListOpts)
 }
 
-func (dc *DockerConnector) ListContainers(ctx context.Context) ([]Container, error) {
+func (dc *DockerConnector) ListContainers(ctx context.Context) ([]models.Container, error) {
 	labeledContainers, err := dc.listContainersWithLabel(ctx, ChuckEnableLabel)
 	if err != nil {
 		return nil, err
 	}
 
-	containers := make([]Container, len(labeledContainers))
+	containers := make([]models.Container, len(labeledContainers))
 	for i, lc := range labeledContainers {
 		containers[i] = newFromDockerContainer(lc)
 	}
