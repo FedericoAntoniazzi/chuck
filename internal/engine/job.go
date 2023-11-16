@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/FedericoAntoniazzi/chuck/internal/connector"
@@ -40,28 +41,35 @@ func (job *Job) Run() error {
 		return err
 	}
 
-	imgUpdates := make([]models.ImageUpdate, len(containers))
+	imgUpdates := []models.ImageUpdate{}
 
 	// For each image, get the respective tags that match the semver format
-	for i, cntr := range containers {
+	for _, cntr := range containers {
 		if cntr.ImageTag() == "latest" {
 			continue
 		}
 
-		allTags, err := job.RegistryRef.ListAllTags(cntr.ImageName())
+		allTags, err := job.RegistryRef.ListNewerSemverTags(cntr.ImageName(), cntr.ImageTag())
 		if err != nil {
 			return err
 		}
 
-		imgUpdates[i] = models.ImageUpdate{
+		// Ignore images with no updates
+		if len(allTags) == 0 {
+			continue
+		}
+
+		imgUpdates = append(imgUpdates, models.ImageUpdate{
 			Name:        cntr.ImageName(),
 			CurrentTag:  cntr.ImageTag(),
 			UpdatedTags: allTags,
-		}
+		})
 	}
 
 	for _, imgUpd := range imgUpdates {
-		_ = job.NotifyEndpoint.Send("Updates", strings.Join(imgUpd.UpdatedTags, ", "))
+		title := fmt.Sprintf("Updates for %s:%s", imgUpd.Name, imgUpd.CurrentTag)
+		message := strings.Join(imgUpd.UpdatedTags, ", ")
+		_ = job.NotifyEndpoint.Send(title, message)
 	}
 
 	return nil

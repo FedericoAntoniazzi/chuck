@@ -11,7 +11,7 @@ import (
 type ConsoleConnector struct{}
 
 func (cc ConsoleConnector) Send(title, message string) error {
-	fmt.Printf("%s\n\n%s", title, message)
+	fmt.Printf("%s: %s\n", title, message)
 	return nil
 }
 
