@@ -21,8 +21,4 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/FedericoAntoniazzi/chuck/cmd"
-
-func main() {
-	cmd.Execute()
-}
+func main() {}
