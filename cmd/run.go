@@ -23,7 +23,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/FedericoAntoniazzi/chuck/pkg/outputs"
@@ -48,7 +47,8 @@ var runCmd = &cobra.Command{
 			slog.Error("Error listing containers", "err", err)
 		}
 
-		console := outputs.ConsoleOutput{}
+		tabbed := outputs.NewTabbedConsoleOutput()
+		tabbed.SetHeaders("CONTAINER", "IMAGE", "VERSION UPGRADE")
 
 		for _, cnt := range containers {
 			tags, err := registry.ListNewerTags(cnt.Image)
@@ -58,10 +58,10 @@ var runCmd = &cobra.Command{
 
 			if len(tags) > 1 {
 				newestTag := tags[len(tags)-1]
-				message := fmt.Sprintf("Container %s can be upgraded to version %s", cnt.Name, newestTag)
-				console.Send(message)
+				tabbed.AddRow(cnt.Name, cnt.Image, newestTag)
 			}
 		}
+		tabbed.Print()
 	},
 }
 
