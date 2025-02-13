@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -40,7 +41,7 @@ func (d *DockerRuntime) ListRunningContainers(ctx context.Context) ([]ContainerI
 
 		info := ContainerInfo{
 			ID:    cnt.ID,
-			Name:  cntName,
+			Name:  strings.Replace(cntName, "/", "", -1),
 			Image: cnt.Image,
 		}
 		result[i] = info
