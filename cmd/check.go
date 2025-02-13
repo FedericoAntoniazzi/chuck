@@ -31,9 +31,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// runCmd represents the run command
-var runCmd = &cobra.Command{
-	Use:   "run",
+// checkCmd represents the run command
+var checkCmd = &cobra.Command{
+	Use:   "check",
 	Short: "Check image updates in running containers",
 	Run: func(cmd *cobra.Command, args []string) {
 		rt, err := runtime.NewDockerRuntime()
@@ -66,7 +66,7 @@ var runCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(checkCmd)
 
 	// Here you will define your flags and configuration settings.
 
