@@ -24,8 +24,9 @@ package cmd
 import (
 	"context"
 	"log/slog"
+	"os"
 
-	"github.com/FedericoAntoniazzi/chuck/pkg/outputs"
+	"github.com/FedericoAntoniazzi/chuck/pkg/printers"
 	"github.com/FedericoAntoniazzi/chuck/pkg/registry"
 	"github.com/FedericoAntoniazzi/chuck/pkg/runtime"
 	"github.com/spf13/cobra"
@@ -47,8 +48,15 @@ var checkCmd = &cobra.Command{
 			slog.Error("Error listing containers", "err", err)
 		}
 
-		tabbed := outputs.NewTabbedConsoleOutput()
-		tabbed.SetHeaders("CONTAINER", "IMAGE", "VERSION UPGRADE")
+		outputType := cmd.Flags().Lookup("output").Value.String()
+
+		printer, err := printers.GetPrinter(outputType)
+		if err != nil {
+			slog.Error("error creating output", "error", err)
+			os.Exit(2)
+		}
+
+		printer.Initialize()
 
 		for _, cnt := range containers {
 			tags, err := registry.ListNewerTags(cnt.Image)
@@ -58,10 +66,11 @@ var checkCmd = &cobra.Command{
 
 			if len(tags) > 1 {
 				newestTag := tags[len(tags)-1]
-				tabbed.AddRow(cnt.Name, cnt.Image, newestTag)
+				printer.AddRowParams(cnt.Name, cnt.Image, newestTag)
 			}
 		}
-		tabbed.Print()
+
+		printer.Print()
 	},
 }
 
@@ -77,4 +86,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// runCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	checkCmd.Flags().StringP("output", "o", "tabbed", "Output format (tabbed/text)")
 }
