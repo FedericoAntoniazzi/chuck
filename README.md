@@ -16,7 +16,7 @@ A command-line tool that helps you stay up-to-date with your container images by
 
 ```bash
 # Using go install
-go install github.com/FedericoAntoniazzi/chuck
+go install github.com/FedericoAntoniazzi/chuck@latest
 
 # From source
 git clone https://github.com/FedericoAntoniazzi/chuck
