@@ -58,16 +58,32 @@ var checkCmd = &cobra.Command{
 
 		printer.Initialize()
 
-		for _, cnt := range containers {
-			tags, err := registry.ListNewerTags(cnt.Image)
-			if err != nil {
-				slog.Error("Error listing tags", "err", err, "container", cnt.Name, "image", cnt.Image)
-			}
+		type result struct {
+			ID        string
+			NewestTag string
+		}
 
-			if len(tags) > 1 {
+		results := make(map[string]string)
+		resultChannel := make(chan result)
+		for _, cnt := range containers {
+			go func() {
+				tags, err := registry.ListNewerTags(cnt.Image)
+				if err != nil {
+					slog.Error("Error listing tags", "err", err, "container", cnt.Name, "image", cnt.Image)
+				}
+
 				newestTag := tags[len(tags)-1]
-				printer.AddRowParams(cnt.Name, cnt.Image, newestTag)
-			}
+				resultChannel <- result{ID: cnt.ID, NewestTag: newestTag}
+			}()
+		}
+
+		for i := 0; i < len(containers); i++ {
+			r := <-resultChannel
+			results[r.ID] = r.NewestTag
+		}
+
+		for _, cnt := range containers {
+			printer.AddRowParams(cnt.Name, cnt.Image, results[cnt.ID])
 		}
 
 		printer.Print()

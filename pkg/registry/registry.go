@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/types"
-	"github.com/hashicorp/go-version"
 )
 
 func parseImageTag(image string) string {
@@ -40,13 +40,13 @@ func ListNewerTags(image string) ([]string, error) {
 		return newerTags, errors.New("latest tag is not supported")
 	}
 
-	refVersion, err := version.NewVersion(imageVersion)
+	refVersion, err := semver.NewVersion(imageVersion)
 	if err != nil {
 		return newerTags, err
 	}
 
 	for _, tag := range tags {
-		v, err := version.NewVersion(tag)
+		v, err := semver.NewVersion(tag)
 		// Ignore non-semver tags
 		if err != nil {
 			continue
@@ -57,7 +57,7 @@ func ListNewerTags(image string) ([]string, error) {
 			continue
 		}
 
-		if refVersion.LessThan(v) {
+		if refVersion.Compare(v) <= 0 {
 			newerTags = append(newerTags, tag)
 		}
 	}

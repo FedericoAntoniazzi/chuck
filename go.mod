@@ -3,9 +3,10 @@ module github.com/FedericoAntoniazzi/chuck
 go 1.23.5
 
 require (
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/containers/image/v5 v5.34.0
 	github.com/docker/docker v27.5.1+incompatible
-	github.com/hashicorp/go-version v1.7.0
+	github.com/spf13/cobra v1.8.1
 )
 
 require (
@@ -36,7 +37,6 @@ require (
 	github.com/opencontainers/runtime-spec v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/spf13/cobra v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0 // indirect
