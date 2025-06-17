@@ -1,0 +1,21 @@
+# Binaries for programs
+chuck
+chuck.exe
+/bin/
+
+# Dependency directories
+vendor/
+
+# Go build cache
+# go.sum
+.go/
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Logs and local database files (crucial for your project)
+*.log
+chuck.log
+*.db
+chuck.db
