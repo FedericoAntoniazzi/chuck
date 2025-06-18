@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 )
 
 const (
@@ -54,7 +58,39 @@ func main() {
 	// --- Core Logic Placeholder ---
 	// This is where the core logic for Docker interaction, registry checks,
 	// and SQLite operations will eventually go.
-	fmt.Println("Hello from Chuck! Core logic and database interaction not yet implemented.")
+
+	// Create a background context for Docker API calls
+	ctx := context.Background()
+	containers, err := getRunningContainerImages(ctx)
+	if err != nil {
+		log.Fatalf("Failed to get running containers: %v", err)
+	}
+
+	if len(containers) == 0 {
+		log.Println("No running containers found")
+	} else {
+		log.Printf("Found %d running containers:\n", len(containers))
+		for _, container := range containers {
+			log.Printf("\tContainer ID: %s, Image: %s", container.ID[:12], container.Image)
+		}
+	}
 
 	log.Println("Chuck finished checking. No updates found (yet!).")
+}
+
+// getRunningContainerImages connects to the Docker daemon and returns a list of running containers.
+func getRunningContainerImages(ctx context.Context) ([]container.Summary, error) {
+	log.Println("Connecting to Docker daemon...")
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return nil, fmt.Errorf("error creating Docker client: %w", err)
+	}
+	defer cli.Close()
+
+	log.Println("Listing running containers...")
+	containers, err := cli.ContainerList(ctx, container.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error listing containers: %w", err)
+	}
+	return containers, nil
 }
