@@ -88,7 +88,9 @@ func getRunningContainerImages(ctx context.Context) ([]container.Summary, error)
 	defer cli.Close()
 
 	log.Println("Listing running containers...")
-	containers, err := cli.ContainerList(ctx, container.ListOptions{})
+	containers, err := cli.ContainerList(ctx, container.ListOptions{
+		All: false,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing containers: %w", err)
 	}
