@@ -1,6 +1,11 @@
 package main
 
-import "strings"
+import (
+	"fmt"
+	"path"
+
+	"github.com/distribution/reference"
+)
 
 // Image describes a container image.
 // A container image is composed by Registry/Namespace/Name:Tag (e.g docker.io/library/nginx:1.25)
@@ -20,51 +25,28 @@ func ParseImageName(fullImageName string) (Image, error) {
 		Raw: fullImageName,
 	}
 
-	// Extract the tag if present, else use latest
-	nameAndTag := strings.Split(fullImageName, ":")
-	safeName := nameAndTag[0]
-
-	// If the image name contains ":" for the port of the registry
-	if len(nameAndTag) == 3 {
-		image.Tag = nameAndTag[2]
-		safeName = nameAndTag[0] + ":" + nameAndTag[1]
-
-	} else if len(nameAndTag) == 2 {
-
-		// If it is Registry:port/Image
-		if strings.ContainsRune(nameAndTag[1], '/') {
-			safeName = fullImageName
-			image.Tag = "latest"
-
-			// If it is Image:Tag
-		} else {
-			image.Tag = nameAndTag[1]
-		}
-
-	} else {
-		image.Tag = "latest"
+	// Parse the full image name
+	namedRef, err := reference.ParseNormalizedNamed(fullImageName)
+	if err != nil {
+		return image, fmt.Errorf("failed to parse image reference: %w", err)
 	}
 
-	// Extract registry and namespace from image name
-	imageNameParts := strings.Split(safeName, "/")
+	// Extract registry
+	image.Registry = reference.Domain(namedRef)
 
-	// If just the name is present, use docker's default values
-	if len(imageNameParts) == 1 {
-		image.Registry = "docker.io"
-		image.Namespace = "library"
-		image.Name = imageNameParts[0]
+	// Extract image reference without the registry
+	imagePath := reference.Path(namedRef)
 
-		// If the image is composed by namespace/image
-	} else if len(imageNameParts) == 2 {
-		image.Registry = "docker.io"
-		image.Namespace = imageNameParts[0]
-		image.Name = imageNameParts[1]
+	// Split path into image parts
+	image.Name = path.Base(imagePath)
+	image.Namespace = path.Dir(imagePath)
 
-		// If the image is composed by registry/namespace/image
-	} else if len(imageNameParts) == 3 {
-		image.Registry = imageNameParts[0]
-		image.Namespace = imageNameParts[1]
-		image.Name = imageNameParts[2]
+	// Extract tag
+	taggedRef, isTagged := namedRef.(reference.Tagged)
+	if isTagged {
+		image.Tag = taggedRef.Tag()
+	} else {
+		image.Tag = "latest"
 	}
 
 	return image, nil

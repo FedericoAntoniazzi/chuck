@@ -13,7 +13,7 @@ func TestParseImageName(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:  "Short Docker Hub image - explicit latest tag)",
+			name:  "Short Docker Hub image - explicit latest tag",
 			input: "nginx:latest",
 			expected: Image{
 				Raw:       "nginx:latest",
@@ -25,7 +25,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Short Docker Hub image - implicit latest tag)",
+			name:  "Short Docker Hub image - implicit latest tag",
 			input: "nginx",
 			expected: Image{
 				Raw:       "nginx",
@@ -37,7 +37,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Short Docker Hub image - versioned tag)",
+			name:  "Short Docker Hub image - versioned tag",
 			input: "nginx:1.25",
 			expected: Image{
 				Raw:       "nginx:1.25",
@@ -49,7 +49,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Standard Docker Hub image with namespace - implicit latest tag)",
+			name:  "Standard Docker Hub image with namespace - implicit latest tag",
 			input: "library/nginx",
 			expected: Image{
 				Raw:       "library/nginx",
@@ -61,7 +61,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Standard Docker Hub image with namespace - explicit latest tag)",
+			name:  "Standard Docker Hub image with namespace - explicit latest tag",
 			input: "library/nginx:latest",
 			expected: Image{
 				Raw:       "library/nginx:latest",
@@ -73,7 +73,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Standard Docker Hub image with namespace - versioned tag)",
+			name:  "Standard Docker Hub image with namespace - versioned tag",
 			input: "library/nginx:1.25",
 			expected: Image{
 				Raw:       "library/nginx:1.25",
@@ -85,7 +85,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Extended Docker Hub image with namespace - implicit latest tag)",
+			name:  "Extended Docker Hub image with namespace - implicit latest tag",
 			input: "docker.io/library/nginx",
 			expected: Image{
 				Raw:       "docker.io/library/nginx",
@@ -97,7 +97,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Extended Docker Hub image with namespace - explicit latest tag)",
+			name:  "Extended Docker Hub image with namespace - explicit latest tag",
 			input: "docker.io/library/nginx:latest",
 			expected: Image{
 				Raw:       "docker.io/library/nginx:latest",
@@ -109,7 +109,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Extended Docker Hub image with namespace - versioned tag)",
+			name:  "Extended Docker Hub image with namespace - versioned tag",
 			input: "docker.io/library/nginx:1.25",
 			expected: Image{
 				Raw:       "docker.io/library/nginx:1.25",
@@ -121,7 +121,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Custom registry - implicit latest tag)",
+			name:  "Custom registry - implicit latest tag",
 			input: "myregistry.com/library/nginx",
 			expected: Image{
 				Raw:       "myregistry.com/library/nginx",
@@ -133,7 +133,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Custom registry - explicit latest tag)",
+			name:  "Custom registry - explicit latest tag",
 			input: "myregistry.com/library/nginx:latest",
 			expected: Image{
 				Raw:       "myregistry.com/library/nginx:latest",
@@ -145,7 +145,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Custom registry - versioned tag)",
+			name:  "Custom registry - versioned tag",
 			input: "myregistry.com/library/nginx:1.25",
 			expected: Image{
 				Raw:       "myregistry.com/library/nginx:1.25",
@@ -157,7 +157,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Custom registry with port - implicit latest tag)",
+			name:  "Custom registry with port - implicit latest tag",
 			input: "myregistry.com:8080/library/nginx",
 			expected: Image{
 				Raw:       "myregistry.com:8080/library/nginx",
@@ -169,7 +169,7 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Custom registry with port - explicit latest tag)",
+			name:  "Custom registry with port - explicit latest tag",
 			input: "myregistry.com:8080/library/nginx:latest",
 			expected: Image{
 				Raw:       "myregistry.com:8080/library/nginx:latest",
@@ -181,13 +181,25 @@ func TestParseImageName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Custom registry with port - versioned tag)",
+			name:  "Custom registry with port - versioned tag",
 			input: "myregistry.com:8080/library/nginx:1.25",
 			expected: Image{
 				Raw:       "myregistry.com:8080/library/nginx:1.25",
 				Registry:  "myregistry.com:8080",
 				Namespace: "library",
 				Name:      "nginx",
+				Tag:       "1.25",
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Custom registry with port - versioned tag",
+			input: "myregistry.com:8080/myorg/myproject/image:1.25",
+			expected: Image{
+				Raw:       "myregistry.com:8080/myorg/myproject/image:1.25",
+				Registry:  "myregistry.com:8080",
+				Namespace: "myorg/myproject",
+				Name:      "image",
 				Tag:       "1.25",
 			},
 			wantErr: false,
