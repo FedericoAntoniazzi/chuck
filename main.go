@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/FedericoAntoniazzi/chuck/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
@@ -16,6 +17,12 @@ const (
 	defaultLogFileName = "chuck.log"
 	defaultDBFileName  = "chuck.db"
 )
+
+// registryClient defines the capabilities of a generic client for container registries
+type registryClient interface {
+	// GetTags fetches all available tags for a given image from the registry
+	GetTags(ctx context.Context, image types.Image) ([]string, error)
+}
 
 func main() {
 	// --- CLI Flags Definition ---

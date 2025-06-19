@@ -3,19 +3,21 @@ package main
 import (
 	"reflect"
 	"testing"
+
+	"github.com/FedericoAntoniazzi/chuck/types"
 )
 
 func TestParseImageName(t *testing.T) {
 	testCases := []struct {
 		name     string
 		input    string
-		expected Image
+		expected types.Image
 		wantErr  bool
 	}{
 		{
 			name:  "Short Docker Hub image - explicit latest tag",
 			input: "nginx:latest",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "nginx:latest",
 				Registry:  "docker.io",
 				Namespace: "library",
@@ -27,7 +29,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Short Docker Hub image - implicit latest tag",
 			input: "nginx",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "nginx",
 				Registry:  "docker.io",
 				Namespace: "library",
@@ -39,7 +41,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Short Docker Hub image - versioned tag",
 			input: "nginx:1.25",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "nginx:1.25",
 				Registry:  "docker.io",
 				Namespace: "library",
@@ -51,7 +53,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Standard Docker Hub image with namespace - implicit latest tag",
 			input: "library/nginx",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "library/nginx",
 				Registry:  "docker.io",
 				Namespace: "library",
@@ -63,7 +65,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Standard Docker Hub image with namespace - explicit latest tag",
 			input: "library/nginx:latest",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "library/nginx:latest",
 				Registry:  "docker.io",
 				Namespace: "library",
@@ -75,7 +77,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Standard Docker Hub image with namespace - versioned tag",
 			input: "library/nginx:1.25",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "library/nginx:1.25",
 				Registry:  "docker.io",
 				Namespace: "library",
@@ -87,7 +89,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Extended Docker Hub image with namespace - implicit latest tag",
 			input: "docker.io/library/nginx",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "docker.io/library/nginx",
 				Registry:  "docker.io",
 				Namespace: "library",
@@ -99,7 +101,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Extended Docker Hub image with namespace - explicit latest tag",
 			input: "docker.io/library/nginx:latest",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "docker.io/library/nginx:latest",
 				Registry:  "docker.io",
 				Namespace: "library",
@@ -111,7 +113,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Extended Docker Hub image with namespace - versioned tag",
 			input: "docker.io/library/nginx:1.25",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "docker.io/library/nginx:1.25",
 				Registry:  "docker.io",
 				Namespace: "library",
@@ -123,7 +125,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Custom registry - implicit latest tag",
 			input: "myregistry.com/library/nginx",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "myregistry.com/library/nginx",
 				Registry:  "myregistry.com",
 				Namespace: "library",
@@ -135,7 +137,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Custom registry - explicit latest tag",
 			input: "myregistry.com/library/nginx:latest",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "myregistry.com/library/nginx:latest",
 				Registry:  "myregistry.com",
 				Namespace: "library",
@@ -147,7 +149,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Custom registry - versioned tag",
 			input: "myregistry.com/library/nginx:1.25",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "myregistry.com/library/nginx:1.25",
 				Registry:  "myregistry.com",
 				Namespace: "library",
@@ -159,7 +161,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Custom registry with port - implicit latest tag",
 			input: "myregistry.com:8080/library/nginx",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "myregistry.com:8080/library/nginx",
 				Registry:  "myregistry.com:8080",
 				Namespace: "library",
@@ -171,7 +173,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Custom registry with port - explicit latest tag",
 			input: "myregistry.com:8080/library/nginx:latest",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "myregistry.com:8080/library/nginx:latest",
 				Registry:  "myregistry.com:8080",
 				Namespace: "library",
@@ -183,7 +185,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Custom registry with port - versioned tag",
 			input: "myregistry.com:8080/library/nginx:1.25",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "myregistry.com:8080/library/nginx:1.25",
 				Registry:  "myregistry.com:8080",
 				Namespace: "library",
@@ -195,7 +197,7 @@ func TestParseImageName(t *testing.T) {
 		{
 			name:  "Custom registry with port - versioned tag",
 			input: "myregistry.com:8080/myorg/myproject/image:1.25",
-			expected: Image{
+			expected: types.Image{
 				Raw:       "myregistry.com:8080/myorg/myproject/image:1.25",
 				Registry:  "myregistry.com:8080",
 				Namespace: "myorg/myproject",

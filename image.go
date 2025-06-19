@@ -4,24 +4,15 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/FedericoAntoniazzi/chuck/types"
 	"github.com/distribution/reference"
 )
-
-// Image describes a container image.
-// A container image is composed by Registry/Namespace/Name:Tag (e.g docker.io/library/nginx:1.25)
-type Image struct {
-	Raw       string // Unparsed image reference
-	Registry  string // Registry's URL
-	Namespace string // Image namespace (In case of Docker Hub may be library, or the username)
-	Name      string // Name of the image (e.g nginx, redis)
-	Tag       string // Tag assigned to the image (e.g. latest, 1.15, v2.1.0)
-}
 
 // ParseImageName parses a full image string (e.g., "nginx:latest", "myregistry.com/user/image:tag")
 // into its components (Registry, Namespace, Name, Tag).
 // It handles default Docker Hub implicit values (docker.io, library).
-func ParseImageName(fullImageName string) (Image, error) {
-	image := Image{
+func ParseImageName(fullImageName string) (types.Image, error) {
+	image := types.Image{
 		Raw: fullImageName,
 	}
 
