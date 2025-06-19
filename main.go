@@ -71,7 +71,11 @@ func main() {
 	} else {
 		log.Printf("Found %d running containers:\n", len(containers))
 		for _, container := range containers {
-			log.Printf("\tContainer ID: %s, Image: %s", container.ID[:12], container.Image)
+			image, err := ParseImageName(container.Image)
+			if err != nil {
+				log.Printf("Faile to parse image name %s for container %s: %v", container.Image, container.ID[:12], err)
+			}
+			log.Printf("\tContainer ID: %s, Image: %s/%s/%s:%s (parsed)", container.ID[:12], image.Registry, image.Namespace, image.Name, image.Tag)
 		}
 	}
 
