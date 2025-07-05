@@ -3,6 +3,7 @@ module github.com/FedericoAntoniazzi/chuck
 go 1.24.4
 
 require (
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/distribution/reference v0.6.0
 	github.com/docker/docker v28.2.2+incompatible
 	github.com/stretchr/testify v1.10.0

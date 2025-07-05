@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/FedericoAntoniazzi/chuck/registry/dockerhub"
 	"github.com/FedericoAntoniazzi/chuck/types"
+	"github.com/Masterminds/semver/v3"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
@@ -68,6 +70,11 @@ func main() {
 
 	// Create a background context for Docker API calls
 	ctx := context.Background()
+
+	registryClients := make(map[string]registryClient)
+	registryClients["docker.io"] = dockerhub.NewClient()
+	// Hint: registryClients["ghcr.io"] = github.NewClient()
+
 	containers, err := getRunningContainerImages(ctx)
 	if err != nil {
 		log.Fatalf("Failed to get running containers: %v", err)
@@ -75,18 +82,65 @@ func main() {
 
 	if len(containers) == 0 {
 		log.Println("No running containers found")
-	} else {
-		log.Printf("Found %d running containers:\n", len(containers))
-		for _, container := range containers {
-			image, err := ParseImageName(container.Image)
+		return
+	}
+
+	log.Printf("Found %d running containers: \n", len(containers))
+	// Store the images which tags have already been queried
+	uniqueImages := make(map[string][]string)
+
+	for _, cnt := range containers {
+		log.Printf("DEBUG: processing container %s", cnt.Names[0])
+
+		image, err := ParseImageName(cnt.Image)
+		if err != nil {
+			log.Printf("WARN: Cannot parse container image name: %v\n", err)
+		}
+
+		// Check if the registry is supported
+		if _, ok := registryClients[image.Registry]; !ok {
+			log.Printf("INFO: Registry %s is not yet supported. Skipping\n", image.Registry)
+			continue
+		}
+
+		// Check if the tag is valid SemVer
+		_, err = semver.NewVersion(image.Tag)
+		if err != nil {
+			log.Printf("INFO: Image %s is not a valid semver tag. Skipping\n", image.Tag)
+			continue
+		}
+
+		// Check if image tags have already been fetched
+		imageKey := fmt.Sprintf("%s/%s/%s", image.Registry, image.Namespace, image.Name)
+		availableTags, ok := uniqueImages[imageKey]
+
+		if !ok {
+			log.Printf("INFO: Fetching tags for image %s\n", imageKey)
+			// Fetch image tags from registry
+			regClient := registryClients[image.Registry]
+			tags, err := regClient.GetTags(ctx, image)
 			if err != nil {
-				log.Printf("Faile to parse image name %s for container %s: %v", container.Image, container.ID[:12], err)
+				log.Printf("ERROR: Failed to get tags for %s from registry '%s': %v. Skipping.", imageKey, image.Registry, err)
+				continue
 			}
-			log.Printf("\tContainer ID: %s, Image: %s/%s/%s:%s (parsed)", container.ID[:12], image.Registry, image.Namespace, image.Name, image.Tag)
+
+			uniqueImages[imageKey] = tags
+			availableTags = tags
+			log.Printf("Found %d tags for image %s\n", len(tags), imageKey)
+		}
+
+		latestUpdateTag, isUpdateAvailable, err := FindLatestUpdate(image.Tag, availableTags)
+		if err != nil {
+			log.Printf("Unexpected error during semver update checks: %v\n", err)
+		}
+
+		if isUpdateAvailable {
+			log.Printf("UPDATE: Container %s (%s) can be upgraded from %s to %s\n", cnt.Names[0], imageKey, image.Tag, latestUpdateTag)
+		} else {
+			log.Printf("No update for image %s", imageKey)
 		}
 	}
 
-	log.Println("Chuck finished checking. No updates found (yet!).")
 }
 
 // getRunningContainerImages connects to the Docker daemon and returns a list of running containers.
