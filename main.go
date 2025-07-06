@@ -5,20 +5,23 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/FedericoAntoniazzi/chuck/registry/dockerhub"
 	"github.com/FedericoAntoniazzi/chuck/types"
 	"github.com/Masterminds/semver/v3"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
-	defaultLogFileName = "chuck.log"
-	defaultDBFileName  = "chuck.db"
+	defaultLogFileName  = "chuck.log"
+	defaultDBFileName   = "chuck.db"
+	defaultLoggingLevel = "warn"
 )
 
 // registryClient defines the capabilities of a generic client for container registries
@@ -29,41 +32,48 @@ type registryClient interface {
 
 func main() {
 	// --- CLI Flags Definition ---
-	logToFile := flag.Bool("log-file", false, "Enable logging output to a file")
+	logLevel := flag.String("logLevel", defaultLoggingLevel, "Configure the logging level")
+	logToFile := flag.Bool("logFile", false, "Enable logging output to a file")
+	logFilePath := flag.String("logFilePath", defaultLogFileName, "Log file path")
 	dbPath := flag.String("db-path", defaultDBFileName, "Path to the SQLite database file")
 
 	flag.Parse()
 
 	// --- Logging Setup ---
-	var logOutput *os.File
-	if *logToFile {
-		// For simplicity, we'll keep log file fixed relative to CWD for now
-		logFilePath := defaultLogFileName
-		file, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	atomicLevel := zap.NewAtomicLevel()
 
-		if err != nil {
-			// If we can't open the log file, we should still try to log to stderr
-			log.Printf("ERROR: Failed to open log file '%s': %v. Logging to stderr instead.", logFilePath, err)
-			log.SetOutput(os.Stderr)
-		} else {
-			logOutput = file
-			// Ensure the log file is closed when main exits
-			defer logOutput.Close()
-			log.SetOutput(logOutput)
-		}
-	} else {
-		log.SetOutput(os.Stdout) // Default to console output
+	level, err := zapcore.ParseLevel(*logLevel)
+	if err != nil {
+		log.Fatalf("invalid log level: %v", err)
+		return
+	}
+	atomicLevel.SetLevel(level)
+
+	loggerConfig := zap.NewProductionConfig()
+	loggerConfig.Level = atomicLevel
+	loggerConfig.Encoding = "console"
+	loggerConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.DateTime)
+
+	if *logToFile {
+		loggerConfig.OutputPaths = []string{*logFilePath}
 	}
 
-	log.Println("Chuck: Starting container image update check...")
+	logger, err := loggerConfig.Build()
+	if err != nil {
+		log.Fatalf("failed to initalize zap logger: %v", err)
+	}
+
+	defer logger.Sync()
+	log := logger.Sugar()
+	log.Debug("Chuck started")
 
 	// --- Database Path Handling ---
 	// Resolve the absolute path for the database file
 	resolvedDBPath, err := filepath.Abs(*dbPath)
 	if err != nil {
-		log.Fatalf("ERROR: Could not resolve absolute path for database file '%s': %v", *dbPath, err)
+		log.Fatal("could not resolve absolute path for database file", "path", *dbPath, "err", err)
 	}
-	log.Printf("Using database file: %s", resolvedDBPath)
+	log.Debugf("Using database file: %s", resolvedDBPath)
 
 	// --- Core Logic Placeholder ---
 	// This is where the core logic for Docker interaction, registry checks,
@@ -82,11 +92,11 @@ func main() {
 	}
 
 	if len(containers) == 0 {
-		log.Println("No running containers found")
+		log.Info("No running containers found")
 		return
 	}
 
-	log.Printf("Found %d running containers: \n", len(containers))
+	log.Infof("Found %d running containers", len(containers))
 	// Store the images which tags have already been queried
 	uniqueImages := make(map[string][]string)
 
@@ -99,7 +109,7 @@ func main() {
 			containerName = strings.TrimPrefix(cnt.Names[0], "/")
 		}
 
-		log.Printf("DEBUG: processing container %s", containerName)
+		log.Debug("processing container ", containerName)
 
 		status := types.ImageUpdateStatus{
 			ContainerID:   cnt.ID,
@@ -113,7 +123,7 @@ func main() {
 			status.StatusMessage = fmt.Sprintln("Error parsing image name")
 			status.Error = err.Error()
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			log.Printf("WARN: Cannot parse container image name: %v\n", err)
+			log.Warn("skipping invalid image name", "image", cnt.Image, "error", err)
 			continue
 		}
 
@@ -125,7 +135,7 @@ func main() {
 			status.StatusMessage = fmt.Sprintln("Unsupported registry")
 			status.Error = err.Error()
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			log.Printf("INFO: Registry %s is not yet supported. Skipping\n", image.Registry)
+			log.Warn("skipping unsupported registry", "registry", image.Registry)
 			continue
 		}
 
@@ -135,7 +145,7 @@ func main() {
 			status.StatusMessage = fmt.Sprintln("Error parsing image tag")
 			status.Error = err.Error()
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			log.Printf("INFO: Image %s is not a valid semver tag. Skipping\n", image.Tag)
+			log.Warn("skipping invalid semver tag", "image", image.Raw, "tag", image.Tag)
 			continue
 		}
 
@@ -143,7 +153,7 @@ func main() {
 		imageKey := fmt.Sprintf("%s/%s/%s", image.Registry, image.Namespace, image.Name)
 		availableTags, fetched := uniqueImages[imageKey]
 		if !fetched {
-			log.Printf("INFO: Fetching tags for image %s\n", imageKey)
+			log.Debugf("fetching tags for image %s", imageKey)
 			// Fetch image tags from registry
 			regClient := registryClients[image.Registry]
 			tags, err := regClient.GetTags(ctx, image)
@@ -151,13 +161,13 @@ func main() {
 				status.StatusMessage = fmt.Sprintln("Error fetching images")
 				status.Error = err.Error()
 				allUpdateStatuses = append(allUpdateStatuses, status)
-				log.Printf("ERROR: Failed to get tags for %s from registry '%s': %v. Skipping.", imageKey, image.Registry, err)
+				log.Errorf("error retrieving tags from registry", "image", imageKey, "registry", image.Registry, "error", err)
 				continue
 			}
 
 			uniqueImages[imageKey] = tags
 			availableTags = tags
-			log.Printf("Found %d tags for image %s\n", len(tags), imageKey)
+			log.Debugf("Found %d tags for image %s\n", len(tags), imageKey)
 		}
 
 		latestUpdateTag, isUpdateAvailable, err := FindLatestUpdate(image.Tag, availableTags)
@@ -165,7 +175,7 @@ func main() {
 			status.StatusMessage = fmt.Sprintln("Error comparing tags")
 			status.Error = err.Error()
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			log.Printf("Unexpected error during semver update checks: %v\n", err)
+			log.Error("unexpected error during semver checks", "error", err)
 		}
 
 		status.UpdateAvailable = isUpdateAvailable
@@ -174,10 +184,10 @@ func main() {
 		if isUpdateAvailable {
 			status.StatusMessage = "Update available"
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			// log.Printf("DEBUG: Container %s (%s) can be upgraded from %s to %s\n", cnt.Names[0], imageKey, image.Tag, latestUpdateTag)
+			log.Debugf("Container %s (%s) can be upgraded to %s", containerName, imageKey, latestUpdateTag)
 		} else {
 			status.StatusMessage = "No update available"
-			log.Printf("No update for image %s", imageKey)
+			log.Debugf("checked updates for %s (%s). No updates available", containerName, imageKey)
 		}
 	}
 
