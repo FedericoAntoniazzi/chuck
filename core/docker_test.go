@@ -1,9 +1,8 @@
-package main
+package core
 
 import (
 	"context"
 	"io"
-	"log"
 	"os"
 	"slices"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"go.uber.org/zap"
 )
 
 // TestGetRunningContainerImages is an integration test for the getRunningContainerImages function.
@@ -19,6 +19,9 @@ import (
 func TestGetRunningContainerImages(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	devLog, _ := zap.NewDevelopment()
+	log := devLog.Sugar()
 
 	// Check if Docker daemon is accessible
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -32,10 +35,6 @@ func TestGetRunningContainerImages(t *testing.T) {
 	if err != nil {
 		t.Skipf("Docker daemon not responsive: %v", err)
 	}
-
-	// Use dedicated output for tests
-	// originalLogOutput := log.Writer()
-	// log.SetOutput(os.Stderr)
 
 	createAndStartContainer := func(t *testing.T, ctx context.Context, cli *client.Client, imageName, containerName string) string {
 		t.Helper()
@@ -56,7 +55,7 @@ func TestGetRunningContainerImages(t *testing.T) {
 
 		if !imagePresent {
 			// Ensure image is pulled
-			log.Printf("Pulling image %s", imageName)
+			log.Infof("Pulling image %s", imageName)
 			pullResponse, err := cli.ImagePull(ctx, imageName, image.PullOptions{})
 			if err != nil {
 				t.Fatalf("Failed to pull image %s: %v", imageName, err)
@@ -65,7 +64,7 @@ func TestGetRunningContainerImages(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to read pull image result: %v", err)
 			}
-			log.Printf("Image pulled")
+			log.Infof("Image pulled")
 		}
 
 		// Create container
@@ -109,7 +108,7 @@ func TestGetRunningContainerImages(t *testing.T) {
 	// Test without running containers
 	// The user is responsible to run this code on a clean docker host with no running containers (yet)
 	t.Run("NoRunningContainers", func(t *testing.T) {
-		containers, err := getRunningContainerImages(ctx)
+		containers, err := GetRunningContainerImages(ctx, log)
 		if err != nil {
 			t.Fatalf("Expected no error when listing 0 containers, got: %v", err)
 		}
@@ -124,7 +123,7 @@ func TestGetRunningContainerImages(t *testing.T) {
 		imageName := "nginx:1.25"
 		_ = createAndStartContainer(t, ctx, cli, imageName, containerName)
 
-		containers, err := getRunningContainerImages(ctx)
+		containers, err := GetRunningContainerImages(ctx, log)
 		if err != nil {
 			t.Fatalf("Expected no error when listing containers, got %v", err)
 		}
@@ -158,7 +157,7 @@ func TestGetRunningContainerImages(t *testing.T) {
 			_ = createAndStartContainer(t, ctx, cli, testContainer.image, testContainer.container)
 		}
 
-		containers, err := getRunningContainerImages(ctx)
+		containers, err := GetRunningContainerImages(ctx, log)
 		if err != nil {
 			t.Fatalf("Expected no error when listing containers, got %v", err)
 		}
@@ -175,7 +174,7 @@ func TestGetRunningContainerImages(t *testing.T) {
 		_ = os.Setenv("DOCKER_HOST", "tcp://127.0.0.1:63001")
 		defer os.Setenv("DOCKER_HOST", originalDockerHost)
 
-		_, err := getRunningContainerImages(ctx)
+		_, err := GetRunningContainerImages(ctx, log)
 		if err == nil {
 			t.Error("Expected an error in case of docker client creation failure, but got none")
 		}

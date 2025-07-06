@@ -9,11 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FedericoAntoniazzi/chuck/core"
 	"github.com/FedericoAntoniazzi/chuck/registry/dockerhub"
 	"github.com/FedericoAntoniazzi/chuck/types"
 	"github.com/Masterminds/semver/v3"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -86,7 +85,7 @@ func main() {
 	registryClients["docker.io"] = dockerhub.NewClient()
 	// Hint: registryClients["ghcr.io"] = github.NewClient()
 
-	containers, err := getRunningContainerImages(ctx)
+	containers, err := core.GetRunningContainerImages(ctx, log)
 	if err != nil {
 		log.Fatalf("Failed to get running containers: %v", err)
 	}
@@ -118,7 +117,7 @@ func main() {
 			StatusMessage: "Processing",
 		}
 
-		image, err := ParseImageName(cnt.Image)
+		image, err := core.ParseImageName(cnt.Image)
 		if err != nil {
 			status.StatusMessage = fmt.Sprintln("Error parsing image name")
 			status.Error = err.Error()
@@ -145,7 +144,7 @@ func main() {
 			status.StatusMessage = fmt.Sprintln("Error parsing image tag")
 			status.Error = err.Error()
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			log.Warn("skipping invalid semver tag", "image", image.Raw, "tag", image.Tag)
+			log.Warnw("skipping invalid semver tag", "image", image.Raw, "tag", image.Tag)
 			continue
 		}
 
@@ -170,7 +169,7 @@ func main() {
 			log.Debugf("Found %d tags for image %s\n", len(tags), imageKey)
 		}
 
-		latestUpdateTag, isUpdateAvailable, err := FindLatestUpdate(image.Tag, availableTags)
+		latestUpdateTag, isUpdateAvailable, err := core.FindLatestUpdate(image.Tag, availableTags)
 		if err != nil {
 			status.StatusMessage = fmt.Sprintln("Error comparing tags")
 			status.Error = err.Error()
@@ -200,23 +199,4 @@ func main() {
 			)
 		}
 	}
-}
-
-// getRunningContainerImages connects to the Docker daemon and returns a list of running containers.
-func getRunningContainerImages(ctx context.Context) ([]container.Summary, error) {
-	log.Println("Connecting to Docker daemon...")
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return nil, fmt.Errorf("error creating Docker client: %w", err)
-	}
-	defer cli.Close()
-
-	log.Println("Listing running containers...")
-	containers, err := cli.ContainerList(ctx, container.ListOptions{
-		All: false,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error listing containers: %w", err)
-	}
-	return containers, nil
 }
