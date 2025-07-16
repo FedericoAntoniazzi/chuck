@@ -5,9 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/FedericoAntoniazzi/chuck/core"
 	"github.com/FedericoAntoniazzi/chuck/registry/dockerhub"
@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	defaultLogFileName  = "chuck.log"
-	defaultDBFileName   = "chuck.db"
-	defaultLoggingLevel = "warn"
+	defaultDBFileName    = "chuck.db"
+	defaultLoggingLevel  = "warn"
+	defaultLoggingFormat = "text"
 )
 
 // registryClient defines the capabilities of a generic client for container registries
@@ -29,50 +29,63 @@ type registryClient interface {
 	GetTags(ctx context.Context, image types.Image) ([]string, error)
 }
 
+func defineLogger(logLevel string, logFormat string) (*zap.SugaredLogger, error) {
+	var encoderConfig zapcore.EncoderConfig
+	var encoder zapcore.Encoder
+
+	switch strings.ToLower(logFormat) {
+	// Machine-readable JSON format for console
+	case "json":
+		encoderConfig = zap.NewProductionEncoderConfig()
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoder = zapcore.NewJSONEncoder(encoderConfig)
+	case "text":
+		encoderConfig = zap.NewProductionEncoderConfig()
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoder = zapcore.NewConsoleEncoder(encoderConfig)
+	default:
+		encoderConfig = zap.NewProductionEncoderConfig()
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoder = zapcore.NewJSONEncoder(encoderConfig)
+	}
+
+	parsedLevel := zap.InfoLevel
+	if err := parsedLevel.UnmarshalText([]byte(strings.ToLower(logLevel))); err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid log level %s. Defaulting to 'info'. Error: %s", logLevel, err)
+	}
+	atomicLevel := zap.NewAtomicLevelAt(parsedLevel)
+
+	// Lock the output to allow safe concurrent writes
+	outputSyncer := zapcore.Lock(os.Stdout)
+
+	core := zapcore.NewCore(encoder, outputSyncer, atomicLevel)
+	baseLogger := zap.New(core, zap.AddCaller())
+
+	return baseLogger.Sugar(), nil
+}
+
 func main() {
 	// --- CLI Flags Definition ---
-	logLevel := flag.String("logLevel", defaultLoggingLevel, "Configure the logging level")
-	logToFile := flag.Bool("logFile", false, "Enable logging output to a file")
-	logFilePath := flag.String("logFilePath", defaultLogFileName, "Log file path")
+	logFormat := flag.String("logFormat", defaultLoggingFormat, "Log format (text, json)")
+	logLevel := flag.String("logLevel", defaultLoggingLevel, "Configure the logging level (debug, info, warn, error)")
 	dbPath := flag.String("db-path", defaultDBFileName, "Path to the SQLite database file")
 
 	flag.Parse()
 
 	// --- Logging Setup ---
-	atomicLevel := zap.NewAtomicLevel()
-
-	level, err := zapcore.ParseLevel(*logLevel)
+	logger, err := defineLogger(*logLevel, *logFormat)
 	if err != nil {
-		log.Fatalf("invalid log level: %v", err)
-		return
+		log.Fatalf("error creating logger: %v", err)
 	}
-	atomicLevel.SetLevel(level)
-
-	loggerConfig := zap.NewProductionConfig()
-	loggerConfig.Level = atomicLevel
-	loggerConfig.Encoding = "console"
-	loggerConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.DateTime)
-
-	if *logToFile {
-		loggerConfig.OutputPaths = []string{*logFilePath}
-	}
-
-	logger, err := loggerConfig.Build()
-	if err != nil {
-		log.Fatalf("failed to initalize zap logger: %v", err)
-	}
-
 	defer logger.Sync()
-	log := logger.Sugar()
-	log.Debug("Chuck started")
 
 	// --- Database Path Handling ---
 	// Resolve the absolute path for the database file
 	resolvedDBPath, err := filepath.Abs(*dbPath)
 	if err != nil {
-		log.Fatal("could not resolve absolute path for database file", "path", *dbPath, "err", err)
+		logger.Fatal("could not resolve absolute path for database file", "path", *dbPath, "err", err)
 	}
-	log.Debugf("Using database file: %s", resolvedDBPath)
+	logger.Debugf("Using database file: %s", resolvedDBPath)
 
 	// --- Core Logic Placeholder ---
 	// This is where the core logic for Docker interaction, registry checks,
@@ -85,17 +98,17 @@ func main() {
 	registryClients["docker.io"] = dockerhub.NewClient()
 	// Hint: registryClients["ghcr.io"] = github.NewClient()
 
-	containers, err := core.GetRunningContainerImages(ctx, log)
+	containers, err := core.GetRunningContainerImages(ctx, logger)
 	if err != nil {
-		log.Fatalf("Failed to get running containers: %v", err)
+		logger.Fatalf("Failed to get running containers: %v", err)
 	}
 
 	if len(containers) == 0 {
-		log.Info("No running containers found")
+		logger.Info("No running containers found")
 		return
 	}
 
-	log.Infof("Found %d running containers", len(containers))
+	logger.Infof("Found %d running containers", len(containers))
 	// Store the images which tags have already been queried
 	uniqueImages := make(map[string][]string)
 
@@ -108,7 +121,7 @@ func main() {
 			containerName = strings.TrimPrefix(cnt.Names[0], "/")
 		}
 
-		log.Debug("processing container ", containerName)
+		logger.Debug("processing container ", containerName)
 
 		status := types.ImageUpdateStatus{
 			ContainerID:   cnt.ID,
@@ -122,7 +135,7 @@ func main() {
 			status.StatusMessage = fmt.Sprintln("Error parsing image name")
 			status.Error = err.Error()
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			log.Warn("skipping invalid image name", "image", cnt.Image, "error", err)
+			logger.Warn("skipping invalid image name", "image", cnt.Image, "error", err)
 			continue
 		}
 
@@ -132,9 +145,9 @@ func main() {
 		// Check if the registry is supported
 		if _, ok := registryClients[image.Registry]; !ok {
 			status.StatusMessage = fmt.Sprintln("Unsupported registry")
-			status.Error = err.Error()
+			status.Error = "Unsupported registry"
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			log.Warn("skipping unsupported registry", "registry", image.Registry)
+			logger.Warn("skipping unsupported registry (", image.Registry, ") for image ", image.Raw)
 			continue
 		}
 
@@ -144,7 +157,7 @@ func main() {
 			status.StatusMessage = fmt.Sprintln("Error parsing image tag")
 			status.Error = err.Error()
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			log.Warnw("skipping invalid semver tag", "image", image.Raw, "tag", image.Tag)
+			logger.Warnw("skipping invalid semver tag", "image", image.Raw, "tag", image.Tag)
 			continue
 		}
 
@@ -152,7 +165,7 @@ func main() {
 		imageKey := fmt.Sprintf("%s/%s/%s", image.Registry, image.Namespace, image.Name)
 		availableTags, fetched := uniqueImages[imageKey]
 		if !fetched {
-			log.Debugf("fetching tags for image %s", imageKey)
+			logger.Debugf("fetching tags for image %s", imageKey)
 			// Fetch image tags from registry
 			regClient := registryClients[image.Registry]
 			tags, err := regClient.GetTags(ctx, image)
@@ -160,13 +173,13 @@ func main() {
 				status.StatusMessage = fmt.Sprintln("Error fetching images")
 				status.Error = err.Error()
 				allUpdateStatuses = append(allUpdateStatuses, status)
-				log.Errorf("error retrieving tags from registry", "image", imageKey, "registry", image.Registry, "error", err)
+				logger.Errorf("error retrieving tags from registry", "image", imageKey, "registry", image.Registry, "error", err)
 				continue
 			}
 
 			uniqueImages[imageKey] = tags
 			availableTags = tags
-			log.Debugf("Found %d tags for image %s\n", len(tags), imageKey)
+			logger.Debugf("Found %d tags for image %s", len(tags), imageKey)
 		}
 
 		latestUpdateTag, isUpdateAvailable, err := core.FindLatestUpdate(image.Tag, availableTags)
@@ -174,7 +187,7 @@ func main() {
 			status.StatusMessage = fmt.Sprintln("Error comparing tags")
 			status.Error = err.Error()
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			log.Error("unexpected error during semver checks", "error", err)
+			logger.Error("unexpected error during semver checks", "error", err)
 		}
 
 		status.UpdateAvailable = isUpdateAvailable
@@ -183,10 +196,10 @@ func main() {
 		if isUpdateAvailable {
 			status.StatusMessage = "Update available"
 			allUpdateStatuses = append(allUpdateStatuses, status)
-			log.Debugf("Container %s (%s) can be upgraded to %s", containerName, imageKey, latestUpdateTag)
+			logger.Debugf("Container %s (%s) can be upgraded to %s", containerName, imageKey, latestUpdateTag)
 		} else {
 			status.StatusMessage = "No update available"
-			log.Debugf("checked updates for %s (%s). No updates available", containerName, imageKey)
+			logger.Debugf("checked updates for %s (%s). No updates available", containerName, imageKey)
 		}
 	}
 
