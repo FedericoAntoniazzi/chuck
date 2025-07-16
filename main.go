@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/FedericoAntoniazzi/chuck/core"
+	"github.com/FedericoAntoniazzi/chuck/output"
 	"github.com/FedericoAntoniazzi/chuck/registry/dockerhub"
 	"github.com/FedericoAntoniazzi/chuck/types"
 	"github.com/Masterminds/semver/v3"
@@ -69,6 +70,7 @@ func main() {
 	logFormat := flag.String("logFormat", defaultLoggingFormat, "Log format (text, json)")
 	logLevel := flag.String("logLevel", defaultLoggingLevel, "Configure the logging level (debug, info, warn, error)")
 	dbPath := flag.String("db-path", defaultDBFileName, "Path to the SQLite database file")
+	outputFormat := flag.String("output", "text", "Output format (text, tab)")
 
 	flag.Parse()
 
@@ -203,13 +205,35 @@ func main() {
 		}
 	}
 
+	// Init tabbed printer when is required
+	var tabbedPrinter *output.TabbedPrinter
+	if *outputFormat == "tab" {
+		tabbedPrinter = output.NewTabbedPrinter(logger)
+		tabbedPrinter.SetHeaders("CONTAINER_NAME", "IMAGE", "CURRENT TAG", "LATEST TAG")
+	}
+
 	for _, update := range allUpdateStatuses {
 		if update.UpdateAvailable {
-			fmt.Printf("Container %s (%s) can be upgraded to %s\n",
-				update.ContainerName,
-				update.Image.Raw,
-				update.LatestAvailableTag,
-			)
+			switch *outputFormat {
+			case "text":
+				fmt.Printf("Container %s (%s) can be upgraded to %s\n",
+					update.ContainerName,
+					update.Image.Raw,
+					update.LatestAvailableTag,
+				)
+			case "tab":
+				tabbedPrinter.AddRow(
+					update.ContainerName,
+					update.Image.Name,
+					update.OriginalTag,
+					update.LatestAvailableTag,
+				)
+			}
 		}
 	}
+
+	if *outputFormat == "tab" {
+		tabbedPrinter.Print()
+	}
+
 }

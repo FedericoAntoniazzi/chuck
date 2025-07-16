@@ -38,16 +38,10 @@ Run Chuck from your terminal:
 
 Example
 ```shell
-$ go build -o chuck && ./chuck
-2025/07/06 02:02:06 Chuck: Starting container image update check...
-2025/07/06 02:02:06 Using database file: /home/federico/dev/go/src/chuck/chuck.db
-2025/07/06 02:02:06 Connecting to Docker daemon...
-2025/07/06 02:02:06 Listing running containers...
-2025/07/06 02:02:06 Found 1 running containers: 
-2025/07/06 02:02:06 DEBUG: processing container /sharp_maxwell
-2025/07/06 02:02:06 INFO: Fetching tags for image docker.io/library/nginx
-2025/07/06 02:02:07 Found 100 tags for image docker.io/library/nginx
-2025/07/06 02:02:07 UPDATE: Container /sharp_maxwell (docker.io/library/nginx) can be upgraded from 1.20 to 1.29.0
+❯ chuck -output tab
+2025-07-17T00:22:04.663+0200	warn	chuck/main.go:152	skipping unsupported registry (quay.io) for image quay.io/nginx/nginx-unprivileged:1.25
+CONTAINER_NAME	IMAGE	CURRENT TAG	LATEST TAG
+mywebserver	nginx	1.21		1.29.0
 ```
 
 ## Roadmap
@@ -59,6 +53,7 @@ $ go build -o chuck && ./chuck
 - [x] Perform semantic version comparison to detect updates.
 - [x] Report updates to standard output/log file.
 - [x] Gracefully skip non-semantic version tags.
+- [x] Show results in a tabbed format (such as `kubectl`)
 
 ### Phase 2: Configuration & Status Reporting
 - [ ] Develop configuration management using a `chuck.yaml` file, supporting XDG Base Directory Specification for config location.
